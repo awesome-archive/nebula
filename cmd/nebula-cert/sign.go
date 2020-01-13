@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/crypto/curve25519"
 	"github.com/slackhq/nebula/cert"
+	"golang.org/x/crypto/curve25519"
 )
 
 type signFlags struct {
@@ -36,7 +36,7 @@ func newSignFlags() *signFlags {
 	sf.caCertPath = sf.set.String("ca-crt", "ca.crt", "Optional: path to the signing CA cert")
 	sf.name = sf.set.String("name", "", "Required: name of the cert, usually a hostname")
 	sf.ip = sf.set.String("ip", "", "Required: ip and network in CIDR notation to assign the cert")
-	sf.duration = sf.set.Duration("duration", 0, "Required: how long the cert should be valid for. Valid time units are seconds: \"s\", minutes: \"m\", hours: \"h\"")
+	sf.duration = sf.set.Duration("duration", 0, "Optional: how long the cert should be valid for. The default is 1 second before the signing cert expires. Valid time units are seconds: \"s\", minutes: \"m\", hours: \"h\"")
 	sf.inPubPath = sf.set.String("in-pub", "", "Optional (if out-key not set): path to read a previously generated public key")
 	sf.outKeyPath = sf.set.String("out-key", "", "Optional (if in-pub not set): path to write the private key to")
 	sf.outCertPath = sf.set.String("out-crt", "", "Optional: path to write the certificate to")
@@ -103,10 +103,6 @@ func signCert(args []string, out io.Writer, errOut io.Writer) error {
 		*sf.duration = time.Until(caCert.Details.NotAfter) - time.Second*1
 	}
 
-	if caCert.Details.NotAfter.Before(time.Now().Add(*sf.duration)) {
-		return fmt.Errorf("refusing to generate certificate with duration beyond root expiration: %s", caCert.Details.NotAfter)
-	}
-
 	ip, ipNet, err := net.ParseCIDR(*sf.ip)
 	if err != nil {
 		return newHelpErrorf("invalid ip definition: %s", err)
@@ -165,16 +161,16 @@ func signCert(args []string, out io.Writer, errOut io.Writer) error {
 		},
 	}
 
+	if err := nc.CheckRootConstrains(caCert); err != nil {
+		return fmt.Errorf("refusing to sign, root certificate constraints violated: %s", err)
+	}
+
 	if *sf.outKeyPath == "" {
 		*sf.outKeyPath = *sf.name + ".key"
 	}
 
 	if *sf.outCertPath == "" {
 		*sf.outCertPath = *sf.name + ".crt"
-	}
-
-	if _, err := os.Stat(*sf.outKeyPath); err == nil {
-		return fmt.Errorf("refusing to overwrite existing key: %s", *sf.outKeyPath)
 	}
 
 	if _, err := os.Stat(*sf.outCertPath); err == nil {
@@ -187,6 +183,10 @@ func signCert(args []string, out io.Writer, errOut io.Writer) error {
 	}
 
 	if *sf.inPubPath == "" {
+		if _, err := os.Stat(*sf.outKeyPath); err == nil {
+			return fmt.Errorf("refusing to overwrite existing key: %s", *sf.outKeyPath)
+		}
+
 		err = ioutil.WriteFile(*sf.outKeyPath, cert.MarshalX25519PrivateKey(rawPriv), 0600)
 		if err != nil {
 			return fmt.Errorf("error while writing out-key: %s", err)

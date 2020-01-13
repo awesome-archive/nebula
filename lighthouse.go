@@ -33,7 +33,7 @@ type EncWriter interface {
 	SendMessageToAll(t NebulaMessageType, st NebulaMessageSubType, vpnIp uint32, p, nb, out []byte)
 }
 
-func NewLightHouse(amLighthouse bool, myIp uint32, ips []string, interval int, nebulaPort int, pc *udpConn, punchBack bool) *LightHouse {
+func NewLightHouse(amLighthouse bool, myIp uint32, ips []uint32, interval int, nebulaPort int, pc *udpConn, punchBack bool) *LightHouse {
 	h := LightHouse{
 		amLighthouse: amLighthouse,
 		myIp:         myIp,
@@ -46,11 +46,20 @@ func NewLightHouse(amLighthouse bool, myIp uint32, ips []string, interval int, n
 		punchBack:    punchBack,
 	}
 
-	for _, rIp := range ips {
-		h.lighthouses[ip2int(net.ParseIP(rIp))] = struct{}{}
+	for _, ip := range ips {
+		h.lighthouses[ip] = struct{}{}
 	}
 
 	return &h
+}
+
+func (lh *LightHouse) ValidateLHStaticEntries() error {
+	for lhIP, _ := range lh.lighthouses {
+		if _, ok := lh.staticList[lhIP]; !ok {
+			return fmt.Errorf("Lighthouse %s does not have a static_host_map entry", IntIp(lhIP))
+		}
+	}
+	return nil
 }
 
 func (lh *LightHouse) Query(ip uint32, f EncWriter) ([]udpAddr, error) {
@@ -185,7 +194,7 @@ func NewIpAndPortsFromNetIps(ips []udpAddr) *[]*IpAndPort {
 }
 
 func (lh *LightHouse) LhUpdateWorker(f EncWriter) {
-	if lh.amLighthouse {
+	if lh.amLighthouse || lh.interval == 0 {
 		return
 	}
 

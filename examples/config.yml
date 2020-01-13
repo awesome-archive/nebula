@@ -1,8 +1,9 @@
 # This is the nebula example configuration file. You must edit, at a minimum, the static_host_map, lighthouse, and firewall sections
-
+# Some options in this file are HUPable, including the pki section. (A HUP will reload credentials from disk without affecting existing tunnels)
 
 # PKI defines the location of credentials for this node. Each of these can also be inlined by using the yaml ": |" syntax.
 pki:
+  # The CAs that are accepted by this node. Must contain one or more certificates created by 'nebula-cert ca'
   ca: /etc/nebula/ca.crt
   cert: /etc/nebula/host.crt
   key: /etc/nebula/host.key
@@ -10,7 +11,7 @@ pki:
   #blacklist:
   #  - c99d4e650533b92061b09918e838a5a0a6aaee21eed1d12fd937682865936c72
 
-# The static host map defines a set of hosts with with fixed IP addresses on the internet (or any network).
+# The static host map defines a set of hosts with fixed IP addresses on the internet (or any network).
 # A host can have multiple fixed IP addresses defined here, and nebula will try each when establishing a tunnel.
 # The syntax is:
 #   "{nebula ip}": ["{routable ip/dns name}:{routable port}"]
@@ -26,6 +27,10 @@ lighthouse:
   # serve_dns optionally starts a dns listener that responds to various queries and can even be
   # delegated to for resolution
   #serve_dns: false
+  #dns:
+    # The DNS host defines the IP to bind the dns listener to. This also allows binding to the nebula node IP.
+    #host: 0.0.0.0
+    #port: 53
   # interval is the number of seconds between updates from this node to a lighthouse.
   # during updates, a node sends information about its current IP addresses to each node.
   interval: 60
@@ -49,20 +54,19 @@ listen:
   #read_buffer: 10485760
   #write_buffer: 10485760
 
+# Punchy continues to punch inbound/outbound at a regular interval to avoid expiration of firewall nat mappings
+punchy: true
+# punch_back means that a node you are trying to reach will connect back out to you if your hole punching fails
+# this is extremely useful if one node is behind a difficult nat, such as symmetric
+#punch_back: true
+
+# Cipher allows you to choose between the available ciphers for your network.
+# IMPORTANT: this value must be identical on ALL NODES/LIGHTHOUSES. We do not/will not support use of different ciphers simultaneously!
+#cipher: chachapoly
 
 # Local range is used to define a hint about the local network range, which speeds up discovering the fastest
 # path to a network adjacent nebula node.
 #local_range: "172.16.0.0/24"
-
-# Handshake mac is an optional network-wide handshake authentication step that is used to prevent nebula from
-# responding to handshakes from nodes not in possession of the shared secret. This is primarily used to prevent
-# detection of nebula nodes when someone is scanning a network.
-#handshake_mac:
-  #key: "DONOTUSETHISKEY"
-  # You can define multiple accepted keys
-  #accepted_keys:
-    #- "DONOTUSETHISKEY"
-    #- "dontusethiseither"
 
 # sshd can expose informational and administrative functions via ssh this is a
 #sshd:
@@ -96,6 +100,14 @@ tun:
   routes:
     #- mtu: 8800
     #  route: 10.0.0.0/16
+  # Unsafe routes allows you to route traffic over nebula to non-nebula nodes
+  # Unsafe routes should be avoided unless you have hosts/services that cannot run nebula
+  # NOTE: The nebula certificate of the "via" node *MUST* have the "route" defined as a subnet in its certificate
+  unsafe_routes:
+    #- route: 172.16.1.0/24
+    #  via: 192.168.100.99
+    #  mtu: 1300 #mtu will default to tun mtu if this option is not sepcified
+
 
 # TODO
 # Configure logging level
@@ -129,7 +141,7 @@ firewall:
 
   # The firewall is default deny. There is no way to write a deny rule.
   # Rules are comprised of a protocol, port, and one or more of host, group, or CIDR
-  # Logical evaluation is roughly: port AND proto AND ca_sha AND ca_name AND (host OR group OR groups OR cidr)
+  # Logical evaluation is roughly: port AND proto AND (ca_sha OR ca_name) AND (host OR group OR groups OR cidr)
   # - port: Takes `0` or `any` as any, a single number `80`, a range `200-901`, or `fragment` to match second and further fragments of fragmented packets (since there is no port available).
   #   code: same as port but makes more sense when talking about ICMP, TODO: this is not currently implemented in a way that works, use `any`
   #   proto: `any`, `tcp`, `udp`, or `icmp`

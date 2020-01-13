@@ -11,6 +11,8 @@ resulting in a sum that is greater than its individual parts.
 
 You can read more about Nebula [here](https://medium.com/p/884110a5579).
 
+You can also join the NebulaOSS Slack group [here](https://join.slack.com/t/nebulaoss/shared_invite/enQtODY1OTg4MDkwMDM0LWI0ZmI5NDMxOTI2OGM5NzVhYjQxOTZlY2U1NWJlMDhkODJkYThhN2VkMTJjMGEzZjM5Y2YxMDhmYWMxNWE3YmY)
+
 ## Technical Overview
 
 Nebula is a mutually authenticated peer-to-peer software defined network based on the [Noise Protocol Framework](https://noiseprotocol.org/).
@@ -44,16 +46,16 @@ Nebula lighthouses allow nodes to find each other, anywhere in the world. A ligh
   This will create files named `ca.key` and `ca.cert` in the current directory. The `ca.key` file is the most sensitive file you'll create, because it is the key used to sign the certificates for individual nebula nodes/hosts. Please store this file somewhere safe, preferably with strong encryption.
 
 #### 4. Nebula host keys and certificates generated from that certificate authority
-This assumes you have three nodes, named lighthouse1, host1, host3. You can name the nodes any way you'd like, including FQDN. You'll also need to choose IP addresses and the associated subnet. In this example, we are creating a nebula network that will use 192.168.100.x/24 as its network range. This example also demonstrates nebula groups, which can later be used to define traffic rules in a nebula network.
+This assumes you have four nodes, named lighthouse1, laptop, server1, host3. You can name the nodes any way you'd like, including FQDN. You'll also need to choose IP addresses and the associated subnet. In this example, we are creating a nebula network that will use 192.168.100.x/24 as its network range. This example also demonstrates nebula groups, which can later be used to define traffic rules in a nebula network.
 ```
 ./nebula-cert sign -name "lighthouse1" -ip "192.168.100.1/24"
 ./nebula-cert sign -name "laptop" -ip "192.168.100.2/24" -groups "laptop,home,ssh"
 ./nebula-cert sign -name "server1" -ip "192.168.100.9/24" -groups "servers"
-./nebula-cert sign -name "host3" -ip "192.168.100.9/24"
+./nebula-cert sign -name "host3" -ip "192.168.100.10/24"
 ```
 
 #### 5. Configuration files for each host
-Download a copy of the nebula [example configuration](https://github.com/slackhq/nebula/blob/master/examples/config.yaml).
+Download a copy of the nebula [example configuration](https://github.com/slackhq/nebula/blob/master/examples/config.yml).
 
 * On the lighthouse node, you'll need to ensure `am_lighthouse: true` is set.
 
@@ -62,7 +64,7 @@ Download a copy of the nebula [example configuration](https://github.com/slackhq
 
 #### 6. Copy nebula credentials, configuration, and binaries to each host
 
-For each host, copy the nebula binary to the host, along with `config.yaml` from step 5, and the files `ca.crt`, `{host}.crt`, and `{host}.key` from step 2.
+For each host, copy the nebula binary to the host, along with `config.yaml` from step 5, and the files `ca.crt`, `{host}.crt`, and `{host}.key` from step 4.
 
 **DO NOT COPY `ca.key` TO INDIVIDUAL NODES.**
 
